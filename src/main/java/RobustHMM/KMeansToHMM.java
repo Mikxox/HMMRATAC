@@ -16,6 +16,7 @@ package RobustHMM;
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
@@ -54,19 +55,16 @@ public class KMeansToHMM {
 	public void sort(Hmm<ObservationVector> hmm) {
 		for (int i=0; i<hmm.nbStates(); i++) {
 			int indexOfSmallest = indexOfSmallest(hmm,i);
-			//E tmp = array[i];
 			OpdfMultiGaussian tmp = (OpdfMultiGaussian) hmm.getOpdf(i);
-			//array[i] = array[indexOfSmallest];
 			hmm.setOpdf(i, hmm.getOpdf(indexOfSmallest));
 			hmm.setOpdf(indexOfSmallest, tmp);
-			//array[indexOfSmallest] = tmp;
 		}
 	}
 	/**
 	 * Find the smallest state, ie the state with the smallest emission values
 	 * @param hmm a hmm to find the smallest state
 	 * @param startingIndex an integer representing the starting value
-	 * @return
+	 * @return integer
 	 */
 	private int indexOfSmallest(Hmm<ObservationVector> hmm, int startingIndex) {
 		int indexOfSmallestSoFar = startingIndex;
@@ -96,11 +94,10 @@ public class KMeansToHMM {
 	private void build(Dataset data,int K,int numIter,boolean diag,boolean equal,boolean equal2){
 		int numFeatures = data.noAttributes();
 		
-		KMeans k = new KMeans(K,numIter);//changed to Kmeans (modified version with uniform centroids)
-		//k.setUniformInitialCentroids();//added this line when changed to modified version
+		KMeans k = new KMeans(K, numIter);
 		Dataset[] clustered = k.cluster(data);
 		int[] assignments = new int[data.size()];
-		List<OpdfMultiGaussian> opdf = new ArrayList<OpdfMultiGaussian>();
+		List<OpdfMultiGaussian> opdf = new ArrayList<>();
 		
 		for (int a = 0; a < clustered.length;a++){
 			Dataset cluster = clustered[a];
@@ -124,10 +121,10 @@ public class KMeansToHMM {
 				
 			}
 			for (int y = 0;y < means.length;y++){
-				means[y] /= (double) cluster.size();
+				means[y] /= cluster.size();
 			}
-			double[][] covMat = null;
-			if (diag == false){
+			double[][] covMat;
+			if (!diag){
 				covMat = cov.getData();
 			}
 			else{
@@ -158,24 +155,18 @@ public class KMeansToHMM {
 			}
 		}
 		else{
-			for (int i = 0;i < trans.length;i++){
-				for (int a = 0;a < trans[i].length;a++){
-					trans[i][a] = 1.0/(double)K;
-				}
+			for (double[] tran : trans) {
+				Arrays.fill(tran, 1.0 / (double) K);
 			}
 		}
 		
 		double[] initial = new double[K];
-		if (equal == true){
+		if (equal){
 			for (int i = 0; i < K;i++){
 				initial[i] = 1/(double)K;
 			}
 		}
-		hmm = new Hmm<ObservationVector>(initial,trans,opdf);
+		hmm = new Hmm<>(initial, trans, opdf);
 	}
-	
-	
-	
-	
 	
 }

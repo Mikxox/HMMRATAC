@@ -16,34 +16,27 @@ package HMMR_ATAC;
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-/*
-import htsjdk.samtools.SAMFileReader;
-import htsjdk.samtools.SAMFormatException;
-import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.util.CloseableIterator;
-*/
-
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Random;
 
 import Node.TagNode;
 
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMFormatException;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.util.CloseableIterator;
+import htsjdk.samtools.*;
+import htsjdk.samtools.util.CloseableIterator;
 
 
 public class pullLargeLengths {
 	
-	private File bam;
-	private File index;
-	private int minQ;
+	private final File bam;
+	private final File index;
+	private final int minQ;
 	private double[] lengths;
-	private ArrayList<TagNode> genome;
-	private double[] weights = new double[3];
-	private double[] means;
+	private final ArrayList<TagNode> genome;
+	private final double[] weights = new double[3];
+	private final double[] means;
+	private final long seed;
 	/**
 	 * Constructor for creating pullLargeLengths object, reading the data and setting weights
 	 * @param b a File representing the BAM file of reads
@@ -52,7 +45,7 @@ public class pullLargeLengths {
 	 * @param g an ArrayList of TagNode representing the genome
 	 * @param mu an Array of doubles representing the means of the fragment length distributions
 	 */
-	public pullLargeLengths(File b, File i,int m,ArrayList<TagNode> g,double[] mu){
+	public pullLargeLengths(File b, File i,int m,ArrayList<TagNode> g,double[] mu, long seed){
 		bam = b;
 		index = i;
 		minQ = m;
@@ -60,12 +53,8 @@ public class pullLargeLengths {
 		means = mu;
 		read();
 		setWeights();
+		this.seed = seed;
 	}
-	/**
-	 * Access the lengths
-	 * @return an Array of doubles representing the lengths of the fragments read
-	 */
-	public double[] getLengths(){return lengths;}
 	/**
 	 * Access the weights
 	 * @return an Array of doubles representing the proportion of fragments in each length category
@@ -80,9 +69,7 @@ public class pullLargeLengths {
 		int len = lengths.length/div;
 		double[] newLengths = new double[len];
 		shuffle(lengths);
-		for(int i = 0; i < len;i++){
-			newLengths[i] = lengths[i];
-		}
+		System.arraycopy(lengths, 0, newLengths, 0, len);
 		return newLengths;
 	}
 	/**
@@ -90,7 +77,7 @@ public class pullLargeLengths {
 	 * @param list an Array of doubles representing the pulled fragment lengths
 	 */
 	private void shuffle(double[] list){
-		Random rnd = new Random();
+		Random rnd = new Random(seed);
 		for(int i = list.length -1;i > 0;i--){
 			int index = rnd.nextInt(i+1);
 			double a = list[index];
@@ -103,37 +90,41 @@ public class pullLargeLengths {
 	 */
 	private void read(){
 		int counter = 0;
-		SAMFileReader reader = new SAMFileReader(bam,index);
-		ArrayList<Double> temp = new ArrayList<Double>();
-		for (int i = 0; i < genome.size();i++){
-			String chr = genome.get(i).getChrom();
-			int start = genome.get(i).getStart();
-			int stop = genome.get(i).getStop();
-			CloseableIterator<SAMRecord> iter = reader.query(chr,start,stop,false);
-			while (iter.hasNext()){
+		final SamReaderFactory factory =
+				SamReaderFactory.makeDefault();
+		final SamInputResource resource = SamInputResource.of(bam).index(index);
+		final SamReader reader = factory.open(resource);
+		ArrayList<Double> temp = new ArrayList<>();
+		for (TagNode tagNode : genome) {
+			String chr = tagNode.getChrom();
+			int start = tagNode.getStart();
+			int stop = tagNode.getStop();
+			CloseableIterator<SAMRecord> iter = reader.query(chr, start, stop, false);
+			while (iter.hasNext()) {
 				SAMRecord record = null;
-				try{
+				try {
 					record = iter.next();
-				}
-				catch(SAMFormatException ex){
+				} catch (SAMFormatException ex) {
 					System.out.println("SAM Record is problematic. Has mapQ != 0 for unmapped read. Will continue anyway");
 				}
-				if(record != null){
-				if(!record.getReadUnmappedFlag() && !record.getMateUnmappedFlag() && record.getFirstOfPairFlag()) {
-					if (record.getMappingQuality() >= minQ){
-						
-						if (Math.abs(record.getInferredInsertSize()) > 100 && Math.abs(record.getInferredInsertSize())
-								< 1000){
-							counter+=1;
-							temp.add((double)Math.abs(record.getInferredInsertSize()));
+				if (record != null) {
+					if (!record.getReadUnmappedFlag() && !record.getMateUnmappedFlag() && record.getFirstOfPairFlag()) {
+						if (record.getMappingQuality() >= minQ) {
+
+							if (Math.abs(record.getInferredInsertSize()) > 100 && Math.abs(record.getInferredInsertSize())
+									< 1000) {
+								counter += 1;
+								temp.add((double) Math.abs(record.getInferredInsertSize()));
+							}
 						}
 					}
-				}
 				}
 			}
 			iter.close();
 		}
-		reader.close();
+		try {
+			reader.close();
+		} catch (IOException ignored) {}
 		lengths = new double[counter];
 		for (int i = 0;i < temp.size();i++){
 			if (temp.get(i) > 100){
@@ -151,10 +142,10 @@ public class pullLargeLengths {
 		int counter1=0;
 		int counter2=0;
 		int counter3=0;
-		for (int i = 0;i < lengths.length;i++){
-			if (lengths[i] < cutone)
+		for (double length : lengths) {
+			if (length < cutone)
 				counter1++;
-			else if(lengths[i] >= cutone && lengths[i] <= cuttwo)
+			else if (length >= cutone && length <= cuttwo)
 				counter2++;
 			else
 				counter3++;

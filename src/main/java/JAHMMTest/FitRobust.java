@@ -4,10 +4,8 @@ import java.util.Arrays;
 
 public class FitRobust {
 
-	
-	private double[][] covariance;
-	
-	
+	private final double[][] covariance;
+
 	public FitRobust(double[][] c){
 		covariance = c;
 		fit();
@@ -16,26 +14,17 @@ public class FitRobust {
 		return covariance;
 	}
 	private void fit(){
-		
 		double[] m=new double [dimension(covariance)];
         for (int r = 0; r < dimension(covariance); r++){
-                
-                m[r]=covariance[r][r];
-                        
-                
+			m[r]=covariance[r][r];
         }
-         Arrays.sort(m);
-         double max = (m[m.length-1])/1000000000;
-        
-        
-                
-        
+		Arrays.sort(m);
+		double max = (m[m.length-1])/1000000000;
+
         while (!positiveDefined(covariance)){
-                
-                for (int r = 0; r < dimension(covariance); r++)
-                        
-                                covariance[r][r] = covariance[r][r]+max+0.00000000000000001;
-                                        
+			for (int r = 0; r < dimension(covariance); r++) {
+				covariance[r][r] = covariance[r][r] + max + 0.00000000000000001;
+			}
         }
 	}
 	private boolean positiveDefined(double[][] m){

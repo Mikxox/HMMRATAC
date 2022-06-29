@@ -16,7 +16,8 @@ package HMMR_ATAC;
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-import java.util.List;
+import java.util.ArrayList;
+import java.util.Objects;
 
 import JAHMMTest.BaumWelchScaledLearner;
 import JAHMMTest.FitRobust;
@@ -26,85 +27,74 @@ import be.ac.ulg.montefiore.run.jahmm.OpdfMultiGaussian;
 
 public class BaumWelch {
 	
-	private Hmm<?> h;
-	private List<List<ObservationVector>> obs;
-	private int maxIter;
-	private double epsilon;
+	private final Hmm<ObservationVector> h;
+	private final ArrayList<ArrayList<ObservationVector>> obs;
+	private final int maxIter;
+	private final double epsilon;
+	private final int threadAmount;
 	/**
 	 * Constructor for creating new BaumWelch object
 	 * @param H a hidden markov model
-	 * @param o a List of List's of ObservationVector's
-	 */
-	public BaumWelch(Hmm<?> H, List<List<ObservationVector>> o){
-		h = H;
-		obs = o;
-		maxIter=150;
-		epsilon = 0.001;
-	}
-	/**
-	 * Constructor for creating new BaumWelch object
-	 * @param H a hidden markov model
-	 * @param o a List of List of ObservationVector
+	 * @param o a List of a List of ObservationVector
 	 * @param i an integer representing the maximum iterations to perform
 	 */
-	public BaumWelch(Hmm<?> H, List<List<ObservationVector>> o,int i){
+	public BaumWelch(Hmm<ObservationVector> H, ArrayList<ArrayList<ObservationVector>> o, int i, int threadAmount){
 		h=H;
 		obs=o;
 		maxIter=i;
 		epsilon = 0.001;
-	}
-	/**
-	 * Constructor for creating new BaumWelch object
-	 * @param H a hidden markov model
-	 * @param o a List of List of ObservationVector
-	 * @param i an integer representing the maximum iterations to perform
-	 * @param e a double representing the epsilon to check for model covergence
-	 */
-	public BaumWelch(Hmm<?> H, List<List<ObservationVector>> o,int i,double e){
-		h=H;
-		obs=o;
-		maxIter=i;
-		epsilon = e;
+		this.threadAmount = threadAmount;
 	}
 	
 	/**
 	 * Build the model
 	 * @return a refined model after Baum Welch training
 	 */
-	@SuppressWarnings("unchecked")
 	public Hmm<ObservationVector> build(){
-		Hmm<ObservationVector> firstHmm = (Hmm<ObservationVector>) h;
-		firstHmm = checkModel(firstHmm);
-		BaumWelchScaledLearner sbw = new BaumWelchScaledLearner();
+		Hmm<ObservationVector> firstHmm = h;
+		checkModel(firstHmm);
+		BaumWelchScaledLearner sbw = new BaumWelchScaledLearner(obs.get(0).size(), firstHmm.nbStates(), threadAmount);
 		Hmm<ObservationVector> scaled = null;
 		int iter = 0;
 		while (iter < maxIter  ){
-			scaled = sbw.iterate(firstHmm, obs);
-			scaled = checkModel(scaled);
+			try {
+				scaled = sbw.iterate(firstHmm, obs);
+				checkModel(scaled);
+
+			} catch(IllegalArgumentException e){
+				// This happens due to covariance matrix being NaN, can have multiple causes like determinant being so small Java rounds to zero etc.
+				System.out.println("Rounding error during training! Model might not be fully converged! You may want to retrain with a different seed or more training data.");
+				break;
+			}
 			if (converged(scaled,firstHmm)){
 				break;
 			}
 			iter += 1;
 			firstHmm = scaled;
 		}
+		sbw.clean();
 		//Set proportional initial probabilities
-		for (int i = 0; i < scaled.nbStates();i++){
-			scaled.setPi(i,(double) 1/scaled.nbStates()); //bug. originally hardcoded at 0.25, but should be flexable to other K's
+		for (int i = 0; i < Objects.requireNonNull(scaled).nbStates(); i++){
+			scaled.setPi(i,(double) 1/scaled.nbStates());
 		}
 		if (!Double.isNaN(scaled.getAij(0, 0))){
 			return scaled;
-		}
-		else{
-			return (Hmm<ObservationVector>) h;
+		} else if (!Double.isNaN(firstHmm.getAij(0, 0))){
+			for (int i = 0; i < Objects.requireNonNull(scaled).nbStates(); i++) {
+				firstHmm.setPi(i,(double) 1/firstHmm.nbStates());
+			}
+			return firstHmm;
+		} else {
+			return h;
 		}
 	}
 	/**
-	 * Check the model 
+	 * Check the model
+	 *
 	 * @param hmm HMM to check
-	 * @return modified HMM after robust correction
 	 */
-	private Hmm<ObservationVector> checkModel(Hmm<ObservationVector> hmm){
-		for (int i = 0;i < hmm.nbStates();i++){
+	private void checkModel(Hmm<ObservationVector> hmm){
+		for (int i = 0; i < hmm.nbStates(); i++){
 			OpdfMultiGaussian pdf = (OpdfMultiGaussian) hmm.getOpdf(i);
 			double[][] cov = pdf.covariance();
 			FitRobust fitter = new FitRobust(cov);
@@ -112,7 +102,6 @@ public class BaumWelch {
 			OpdfMultiGaussian t = new OpdfMultiGaussian(pdf.mean(),temp);
 			hmm.setOpdf(i, t);
 		}
-		return hmm;
 	}
 	/**
 	 * Access whether the model converged
@@ -127,17 +116,13 @@ public class BaumWelch {
 			OpdfMultiGaussian pdf2 = (OpdfMultiGaussian) h2.getOpdf(i);
 			double[] value1 = pdf1.mean();
 			double[] value2 = pdf2.mean();
-			for (int a = 0; a < value1.length;a++){
+			for (int a = 0; a < value1.length; a++){
 				if (Math.abs(value1[a] - value2[a]) > epsilon){
-					
 					counter += 1;
 				}
 			}
 		}
-		
-		if (counter == 0){
-			return true;
-		}
-		return false;
+
+		return counter == 0;
 	}
 }

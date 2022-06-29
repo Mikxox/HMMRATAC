@@ -23,13 +23,10 @@ import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
 
 public class HMMR_EM {
 
-	private double[] weights;
-	private double[] mu;
-	private double[] lamda;
-	private double[] data;
-	private double epsilon = 0.0005;
-	private int maxIter=20;
-	private double jump = 1.5;
+	private final double[] weights;
+	private final double[] mu;
+	private final double[] lamda;
+	private final double[] data;
 
 	/**
 	 * Constructor for generating new HMMR_EM object
@@ -68,21 +65,22 @@ public class HMMR_EM {
 			means[i] = new Mean();
 			std[i] = new StandardDeviation();
 		}
-		for (int i = 0;i < data.length;i++){
-			
-			for (int l = 0;l < mu.length;l++){
-				temp[l] = getWeightedDensity(data[i],mu[l],lamda[l],weights[l]);
-				
+		for (double datum : data) {
+
+			for (int l = 0; l < mu.length; l++) {
+				temp[l] = getWeightedDensity(datum, mu[l], lamda[l], weights[l]);
+
 			}
 			int index = returnGreater(temp);
-			if (index != -1){
-				means[index].increment(data[i]);
-				std[index].increment(data[i]);
-				counter[index]+=1.0;
-				total+=1.0;
+			if (index != -1) {
+				means[index].increment(datum);
+				std[index].increment(datum);
+				counter[index] += 1.0;
+				total += 1.0;
 			}
 		}
 		for (int i = 0;i < mu.length;i++){
+			double jump = 1.5;
 			mu[i] = mu[i] + (jump *(means[i].getResult()-mu[i]));
 			lamda[i] = lamda[i] + (jump *(std[i].getResult() - lamda[i]));
 			weights[i] = counter[i] / total;
@@ -102,43 +100,30 @@ public class HMMR_EM {
 		boolean converged = false;
 		int iter = 0;
 		while(!converged){
-			
 			for (int a = 0;a < mu.length;a++){
 				oldMu[a] = mu[a];
 				oldLam[a] = lamda[a];
 				oldWeights[a] = weights[a];
 			}
-			
-			
 			iterate();
 			
 			int counter = 0;
 			for (int a = 0;a < mu.length;a++){
-				
-				if(converges(oldMu[a],mu[a],epsilon) && converges(oldWeights[a],weights[a],epsilon)
-						&& converges(oldLam[a],lamda[a],epsilon)){
+
+				double epsilon = 0.0005;
+				if(converges(oldMu[a],mu[a], epsilon) && converges(oldWeights[a],weights[a], epsilon)
+						&& converges(oldLam[a],lamda[a], epsilon)){
 					counter+=1;
 				}
 			}
 			if (counter == mu.length){
-				
 				converged=true;
 			}
 			iter+=1;
+			int maxIter = 20;
 			if (iter >= maxIter){
 				break;
 			}
-			//Output values during iterations
-			/*
-			for (int a = 0;a < mu.length;a++){
-				System.out.println(mu[a]);
-				
-				System.out.println(lamda[a]);
-				System.out.println(weights[a]);
-				System.out.println(iter);
-			}
-			*/
-			//System.out.println(iter);
 		}
 		
 	}
@@ -150,12 +135,7 @@ public class HMMR_EM {
 	 * @return a boolean indicating whether the values have converged
 	 */
 	private boolean converges(double value1,double value2, double epsilon){
-		if (Math.abs(value1 - value2) <= epsilon){
-			return true;
-		}
-		else{
-			return false;
-		}
+		return Math.abs(value1 - value2) <= epsilon;
 	}
 	/**
 	 * Access the weighted density of the multi-variate distribution
@@ -167,7 +147,7 @@ public class HMMR_EM {
 	 */
 	private double getWeightedDensity(double x, double mean, double lamda,double weight){
 		
-		NormalDistribution dis = new NormalDistribution(mean,lamda);
+		NormalDistribution dis = new NormalDistribution(null, mean,lamda);
 		return weight * dis.density(x);
 		
 	}

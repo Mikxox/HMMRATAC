@@ -19,8 +19,6 @@ package HMMR_ATAC;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import Node.TagNode;
 import be.ac.ulg.montefiore.run.jahmm.ObservationVector;
 import net.sf.javaml.core.Dataset;
 import net.sf.javaml.core.DefaultDataset;
@@ -28,17 +26,19 @@ import net.sf.javaml.core.DenseInstance;
 
 public class TrackHolder {
 	
-	private ArrayList<double[]> tracks;
-	private ArrayList<TagNode> positions;
+	private final ArrayList<double[]> tracks;
 	
 	/**
 	 * Constructor for creating a TrackHolder object
 	 * @param t an ArrayList of doubles representing the data to be held
 	 * @param trim an integer representing the number of data points to trim from the left side of the matrix
 	 */
-	public TrackHolder(ArrayList<double[]> t,int trim){
-		tracks = trim(t,trim);
-		//positions = pos;
+	public TrackHolder(ArrayList<double[]> t, int trim){
+		if (trim == 0){
+			tracks = t;
+		} else {
+			tracks = trim(t, trim);
+		}
 	}
 	/**
 	 * Access the data as an ArrayList of double arrays
@@ -46,23 +46,16 @@ public class TrackHolder {
 	 */
 	public ArrayList<double[]> getRawData(){return tracks;}
 	/**
-	 * Access the positions
-	 */
-	public ArrayList<TagNode> getPositions() {return positions;}
-	/**
 	 * Trim the data
 	 * @param t an ArrayList of doubles representing the original data
 	 * @param trim an integer representing how many data points to trim
 	 * @return an ArrayList of doubles representing the trimmed data
 	 */
-	public ArrayList<double[]> trim(ArrayList<double[]> t,int trim){
-		ArrayList<double[]> updated = new ArrayList<double[]>();
-		for (int i = 0;i < t.size();i++){
-			double [] temp = t.get(i);
-			double [] temp2 = new double[temp.length-trim];
-			for (int a = 0; a < temp.length-trim;a++){
-				temp2[a] = temp[a];
-			}
+	public ArrayList<double[]> trim(ArrayList<double[]> t, int trim){
+		ArrayList<double[]> updated = new ArrayList<>();
+		for (double[] temp : t) {
+			double[] temp2 = new double[temp.length - trim];
+			if (temp.length - trim >= 0) System.arraycopy(temp, 0, temp2, 0, temp.length - trim);
 			updated.add(temp2);
 		}
 		return updated;
@@ -73,11 +66,8 @@ public class TrackHolder {
 	 */
 	public Dataset getDataSet(){
 		Dataset data = new DefaultDataset();
-		for (int i = 0;i < tracks.size();i++){
-			DenseInstance ins = new DenseInstance(tracks.get(i));
-			//for (int a = 0;a < tracks.get(i).length;a++){
-				//System.out.println(tracks.get(i)[a]);
-			//}
+		for (double[] track : tracks) {
+			DenseInstance ins = new DenseInstance(track);
 			data.add(ins);
 		}
 		
@@ -87,22 +77,10 @@ public class TrackHolder {
 	 * Access the data as a List of List of ObservationVector for baum welch applications
 	 * @return a List of List of ObservationVector for baum welch applications 
 	 */
-	public List<List<ObservationVector>> getBWObs(){
-		List<List<ObservationVector>> newList = new ArrayList<List<ObservationVector>>();
-		List<ObservationVector> obsList = getObs();
-		int a; int i;
-		int halfSize = obsList.size()/2;
-		
-		for (i = 0;i < obsList.size()-1;i+=halfSize){
-			
-			List<ObservationVector> temp = new ArrayList<ObservationVector>();
-			for (a = i;a < i+halfSize-1;a++){
-				
-				ObservationVector o = (ObservationVector) obsList.get(a);
-				temp.add(o);
-			}
-			newList.add(temp);
-		}
+	public ArrayList<ArrayList<ObservationVector>> getBWObs(){
+		ArrayList<ArrayList<ObservationVector>> newList = new ArrayList<>();
+		ArrayList<ObservationVector> obsList = (ArrayList<ObservationVector>) getObs();
+		newList.add(obsList);
 		return newList;
 	}
 	/**
@@ -110,12 +88,15 @@ public class TrackHolder {
 	 * @return a List of ObservationVector for viterbi applications
 	 */
 	public List<ObservationVector> getObs(){
-		List<ObservationVector> obs = new ArrayList<ObservationVector>();
-		for (int i = 0;i < tracks.size();i++){
-			ObservationVector vec = new ObservationVector(tracks.get(i));
+		List<ObservationVector> obs = new ArrayList<>();
+		for (double[] track : tracks) {
+			ObservationVector vec = new ObservationVector(track);
 			obs.add(vec);
 		}
-		
 		return obs;
+	}
+
+	public List<double[]> getTracks(){
+		return tracks;
 	}
 }

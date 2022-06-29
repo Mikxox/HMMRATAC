@@ -23,9 +23,9 @@ import Node.TagNode;
 
 public class SplitBed {
 	
-	private ArrayList<TagNode> input;
-	private ArrayList<TagNode> output;
-	private int window;
+	private final ArrayList<TagNode> input;
+	private final ArrayList<TagNode> output;
+	private final int window;
 	
 	/**
 	 * Constructor to create new SplitBed object and split the data
@@ -35,7 +35,7 @@ public class SplitBed {
 	public SplitBed(ArrayList<TagNode> i,int w){
 		input = i;
 		window = w;
-		output = new ArrayList<TagNode>();
+		output = new ArrayList<>();
 		split();
 	}
 	/**
@@ -47,16 +47,16 @@ public class SplitBed {
 	 * Split the data by the window
 	 */
 	private void split(){
-		for (int i = 0; i < input.size();i++){
-			String chrom = input.get(i).getChrom();
-			int start = input.get(i).getStart();
-			int stop = input.get(i).getStop();
-			for (int x = start;x < stop;x+=window){
+		for (TagNode tagNode : input) {
+			String chrom = tagNode.getChrom();
+			int start = tagNode.getStart();
+			int stop = tagNode.getStop();
+			for (int x = start; x < stop; x += window) {
 				int end = x + window;
-				if (end > stop){
+				if (end > stop) {
 					end = stop;
 				}
-				TagNode temp = new TagNode(chrom,x,end);
+				TagNode temp = new TagNode(chrom, x, end);
 				output.add(temp);
 			}
 		}

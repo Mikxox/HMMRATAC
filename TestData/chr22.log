@@ -1,0 +1,56 @@
+Version:	2.0.0
+Arguments Used:
+-b	../data/65283_treat_rep1.chr22.bam
+-i	../data/65283_treat_rep1.chr22.bam.bai
+-g	../data/hg19.chr22.genome
+-o	../data/chr22
+Fragment Expectation Maximum Done
+Mean	50.0	StdDevs	20.0
+Mean	181.8840702410899	StdDevs	41.36681292691294
+Mean	362.27018211647044	StdDevs	43.16588302850322
+Mean	555.0823176194549	StdDevs	55.66321406634563
+ScalingFactor	0.792323
+Training Regions found and Zscore regions for exclusion found
+Training Fragment Pileup completed
+Kmeans Model:
+HMM with 3 state(s)
+
+State 0
+  Pi: 0.3333333333333333
+  Aij: 0.333 0.333 0.333
+  Opdf: Multi-variate Gaussian distribution --- Mean: [ 0.182 0.341 0.151 0.034 ]
+
+State 1
+  Pi: 0.3333333333333333
+  Aij: 0.333 0.333 0.333
+  Opdf: Multi-variate Gaussian distribution --- Mean: [ 0.68 1.546 0.626 0.137 ]
+
+State 2
+  Pi: 0.3333333333333333
+  Aij: 0.333 0.333 0.333
+  Opdf: Multi-variate Gaussian distribution --- Mean: [ 1.584 2.892 2.037 0.724 ]
+
+Model created and refined. See ../data/chr22.model for binary model and ../data/chr22_readable.model for human readable model.
+Model:
+HMM with 3 state(s)
+
+State 0
+  Pi: 0.3333333333333333
+  Aij: 0.946 0.046 0.008
+  Opdf: Multi-variate Gaussian distribution --- Mean: [ 0 0 0 0 ]
+
+State 1
+  Pi: 0.3333333333333333
+  Aij: 0.035 0.949 0.016
+  Opdf: Multi-variate Gaussian distribution --- Mean: [ 0.611 1.238 0.036 0 ]
+
+State 2
+  Pi: 0.3333333333333333
+  Aij: 0.006 0.014 0.98
+  Opdf: Multi-variate Gaussian distribution --- Mean: [ 0.67 1.456 1.139 0.297 ]
+
+Model written (seconds): 	26
+Genome split and subtracted masked regions
+0 round viterbi done
+4 round viterbi done
+Total time (seconds): 	31

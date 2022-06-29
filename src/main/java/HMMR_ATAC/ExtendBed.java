@@ -23,9 +23,9 @@ import Node.TagNode;
 
 public class ExtendBed {
 	
-	private ArrayList<TagNode> input;
-	private int extSize;
-	private ArrayList<TagNode> output;
+	private final ArrayList<TagNode> input;
+	private final int extSize;
+	private final ArrayList<TagNode> output;
 	
 	/**
 	 * Constructor for creating ExtendBed object and performing extension
@@ -35,7 +35,7 @@ public class ExtendBed {
 	public ExtendBed(ArrayList<TagNode> i,int ext){
 		input = i;
 		extSize = ext;
-		output = new ArrayList<TagNode>();
+		output = new ArrayList<>();
 		set();
 	}
 	/**
@@ -49,15 +49,14 @@ public class ExtendBed {
 	 * Extend the data by the extension size
 	 */
 	private void set(){
-		
-		for (int i = 0; i < input.size();i++){
-			String chr = input.get(i).getChrom();
-			int start = input.get(i).getStart();
-			if (start - extSize > 0){
+		for (TagNode tagNode : input) {
+			String chr = tagNode.getChrom();
+			int start = tagNode.getStart();
+			if (start - extSize > 0) {
 				start = start - extSize;
 			}
-			int stop = input.get(i).getStop() + extSize;
-			TagNode temp = new TagNode(chr,start,stop);
+			int stop = tagNode.getStop() + extSize;
+			TagNode temp = new TagNode(chr, start, stop);
 			output.add(temp);
 		}
 	}

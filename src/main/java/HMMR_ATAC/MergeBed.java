@@ -23,16 +23,16 @@ import Node.TagNode;
 
 public class MergeBed {
 	
-	private ArrayList<TagNode> input;
+	private final ArrayList<TagNode> input;
 	
-	private ArrayList<TagNode> output;
+	private final ArrayList<TagNode> output;
 	/**
 	 * Constructor for creating new MergeBed object and merging data
 	 * @param i an ArrayList of TagNode representing the data to be merged
 	 */
 	public MergeBed(ArrayList<TagNode> i){
 		input = i;
-		output = new ArrayList<TagNode>();
+		output = new ArrayList<>();
 		merge();
 	}
 	/**

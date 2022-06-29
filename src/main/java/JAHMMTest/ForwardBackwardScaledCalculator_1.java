@@ -9,6 +9,7 @@ import java.util.*;
 
 import be.ac.ulg.montefiore.run.jahmm.Hmm;
 import be.ac.ulg.montefiore.run.jahmm.Observation;
+import be.ac.ulg.montefiore.run.jahmm.ObservationVector;
 
 
 /**
@@ -33,11 +34,10 @@ extends ForwardBackwardCalculator_1
 	 * in this class, they have their value scaled.
 	 */
 	// Scaling factors
-	private double[] ctFactors;
-	private double lnProbability;
+	private final double[] ctFactors;
 	
-	//Scaling constant that i added
-	private int constant;
+	//Scaling constant
+	private final int constant;
 	
 	/**
 	 * Computes the probability of occurence of an observation sequence
@@ -47,62 +47,77 @@ extends ForwardBackwardCalculator_1
 	 * @param hmm A Hidden Markov Model;
 	 * @param oseq An observations sequence.
 	 * @param flags How the computation should be done. See the
-	 *              {@link ForwardBackwardCalculator.Computation}.
+	 *              {@link ForwardBackwardCalculator_1.Computation}.
 	 *              The alpha array is always computed.
 	 */
 	public <O extends Observation> 
 	ForwardBackwardScaledCalculator_1(List<? extends O> oseq,
-			Hmm<O> hmm, EnumSet<Computation> flags,int c)
+			Hmm<O> hmm, EnumSet<Computation> flags, int c, double[][] alpha, double[][] beta, int threadAmount)
 	{
-		if (oseq.isEmpty())
+		super(hmm, oseq.size());
+		if (oseq.isEmpty()) {
 			throw new IllegalArgumentException();
-		
-		//System.out.println("Scaled FB");
+		}
+
 		ctFactors = new double[oseq.size()];
-		Arrays.fill(ctFactors, 0.);
 		constant = c;
-		computeAlpha(hmm, oseq);
-		
-		if (flags.contains(Computation.BETA))
-			computeBeta(hmm, oseq);
-		
-		computeProbability(oseq, hmm, flags);
-	}
-	
-	
-	/**
-	 * Computes the probability of occurence of an observation sequence
-	 * given a Hidden Markov Model.  This computation computes the scaled
-	 * <code>alpha</code> array as a side effect.
-	 * @see #ForwardBackwardScaledCalculator(List, Hmm, EnumSet)
-	 */
-	public <O extends Observation>
-	ForwardBackwardScaledCalculator_1(List<? extends O> oseq, Hmm<O> hmm,int c)
-	{
-		this(oseq, hmm, EnumSet.of(Computation.ALPHA),c);
-		
+		int dim = ((ObservationVector) oseq.get(0)).dimension();
+		int threadSize = oseq.size() / threadAmount;
+
+		ArrayList<Thread> threads = new ArrayList<>();
+		for (int threadCounter = 0; threadCounter < threadAmount; threadCounter++){
+			int start = threadSize * threadCounter;
+			int end;
+			if (threadCounter == threadAmount - 1){
+				end = oseq.size(); // Do this to avoid rounding error
+			} else {
+				end = threadSize * (threadCounter + 1);
+			}
+
+			Thread thread = new Thread(() -> {
+				double[] matrix1 = new double[dim];
+				for (int t = start; t < end; t++) {
+					O observation = oseq.get(t);
+					computeProbability(hmm, observation, t, matrix1);
+				}
+			});
+			thread.start();
+			threads.add(thread);
+		}
+
+		for (Thread thread : threads){
+			try {
+				thread.join();
+			} catch (InterruptedException ignored){}
+		}
+
+		this.alpha = alpha;
+		computeAlpha(hmm);
+
+		if (flags.contains(Computation.BETA)) {
+			this.beta = beta;
+			computeBeta(hmm);
+		}
 	}
 	
 	
 	/* Computes the content of the scaled alpha array */
 	protected <O extends Observation> void
-	computeAlpha(Hmm<? super O> hmm, List<O> oseq)
-	{	
-		alpha = new double[oseq.size()][hmm.nbStates()];
-		
-		for (int i = 0; i < hmm.nbStates(); i++)
-			computeAlphaInit(hmm, oseq.get(0), i);
+	computeAlpha(Hmm<? super O> hmm)
+	{
+		for (int i = 0; i < hmm.nbStates(); i++) {
+			computeAlphaInit(hmm, i);
+		}
 		scale(ctFactors, alpha, 0);
-		
-		Iterator<? extends O> seqIterator = oseq.iterator();
-		if (seqIterator.hasNext())
-			seqIterator.next();
-		
-		for (int t = 1; t < oseq.size(); t++) {
-			O observation = seqIterator.next();
-			
-			for (int i = 0; i < hmm.nbStates(); i++)
-				computeAlphaStep(hmm, observation, t, i);
+
+		for (int t = 1; t < size; t++) {
+			Arrays.fill(alpha[t], .0);
+			for (int j = 0; j < hmm.nbStates(); j++) {
+				for (int i = 0; i < hmm.nbStates(); i++) {
+					alpha[t][j] += alpha[t - 1][i] * hmm.getAij(i, j);
+				}
+				alpha[t][j] *= probabilities[j][t];
+			}
 			scale(ctFactors, alpha, t);
 		}
 	}
@@ -111,18 +126,22 @@ extends ForwardBackwardCalculator_1
 	/* Computes the content of the scaled beta array.  The scaling factors are
 	 those computed for alpha. */
 	protected <O extends Observation> void 
-	computeBeta(Hmm<? super O> hmm, List<O> oseq)
-	{	
-		beta = new double[oseq.size()][hmm.nbStates()];
-		
-		for (int i = 0; i < hmm.nbStates(); i++)
-			beta[oseq.size()-1][i] = 1. / ctFactors[oseq.size()-1];
-		
-		for (int t = oseq.size() - 2; t >= 0; t--)
-			for (int i = 0; i < hmm.nbStates(); i++) {
-				computeBetaStep(hmm, oseq.get(t+1), t, i);
-				beta[t][i] /= ctFactors[t];
+	computeBeta(Hmm<? super O> hmm)
+	{
+		for (int i = 0; i < hmm.nbStates(); i++) {
+			beta[size - 1][i] = probabilities[i][size - 1] / ctFactors[size - 1];
+		}
+		double temp;
+		for (int t = size - 2; t >= 0; t--) {
+			Arrays.fill(beta[t], .0);
+
+			for (int j = 0; j < hmm.nbStates(); j++) {
+				temp = beta[t + 1][j] / ctFactors[t];
+				for (int i = 0; i < hmm.nbStates(); i++) {
+					beta[t][i] += hmm.getAij(i, j) * temp * probabilities[i][t];
+				}
 			}
+		}
 	}
 	
 	
@@ -131,39 +150,20 @@ extends ForwardBackwardCalculator_1
 	{
 		double[] table = array[t];
 		double sum = 0.;
-		
-		for (int i = 0; i < table.length; i++)
-			sum += table[i];
+
+		for (double v : table) {
+			sum += v;
+		}
 		
 		//added: multiply sum by constant. original code did not multiply sum by constant
 		//to force original method, set constant to one
 		ctFactors[t] = sum * constant;
-		for (int i = 0; i < table.length; i++) 
+		for (int i = 0; i < table.length; i++) {
 			table[i] /= sum * constant;
+		}
 	}
-	
-	
-	private <O extends Observation> void
-	computeProbability(List<O> oseq, Hmm<? super O> hmm, 
-			EnumSet<Computation> flags)
-	{	
-		lnProbability = 0.;
-		
-		for (int t = 0; t < oseq.size(); t++)
-			lnProbability += Math.log(ctFactors[t]);
-		
-		probability = Math.exp(lnProbability);
-	}
-	
-	
-	/**
-	 * Return the neperian logarithm of the probability of the sequence that
-	 * generated this object.
-	 *
-	 * @return The probability of the sequence of interest's neperian logarithm.
-	 */
-	public double lnProbability()
-	{
-		return lnProbability;
+
+	public void clean(){
+		super.clean();
 	}
 }

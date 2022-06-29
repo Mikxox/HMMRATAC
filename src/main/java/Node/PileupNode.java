@@ -18,47 +18,27 @@ package Node;
 public class PileupNode {
 	
 	
-	private int _base;
-	private double _score;
-	private int _score2;
+	private final int _base;
+	private final double _score;
+	private final String _chrom;
 	/**
 	 * Constructor for creating new PileupNode
 	 * @param base an integer representing the base position
 	 * @param score a double representing the base's score
+	 * @param chrom a String representing the chromosome name
 	 */
-	public PileupNode(int base, double score){
-	//	_chrom = chr;
+	public PileupNode(int base, double score, String chrom){
 		_base = base;
 		_score = score;
+		_chrom = chrom;
 	}
-	/**
-	 * Default Constructor
-	 */
-	public PileupNode(){
-		
-	}
-	/**
-	 * Constructor for creating new PileupNode
-	 * @param base an integer representing the base position
-	 * @param score a integer representing the base's score
-	 */
-	public PileupNode(int base,int score){
-		_base = base;
-		_score2 = score;
-	}
+
 	/**
 	 * Access the base position
 	 * @return an integer representing the base position
 	 */
 	public int getBase(){
 		return _base;
-	}
-	/**
-	 * Set the base position
-	 * @param base an integer representing the base position
-	 */
-	public void setBase(int base){
-		_base = base;
 	}
 	/**
 	 * Access the score
@@ -68,24 +48,10 @@ public class PileupNode {
 		return _score;
 	}
 	/**
-	 * Set the score
-	 * @param score a double representing the positions score
+	 * Access the chromosome name
+	 * @return a String representing the chromosome na,e
 	 */
-	public void setScore(double score){
-		_score = score;
-	}
-	/**
-	 * Access the score
-	 * @return an integer representing the score at the position
-	 */
-	public int getScore2(){
-		return _score2;
-	}
-	/**
-	 * Set the score
-	 * @param score an integer representing the positions score
-	 */
-	public void setScore2(int score){
-		_score2 = score;
+	public String getChrom(){
+		return _chrom;
 	}
 }
